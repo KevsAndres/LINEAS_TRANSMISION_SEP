@@ -1,0 +1,273 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Aug 29 15:50:41 2023
+
+@author: Kevin
+"""
+from numpy import array
+from tabulate import tabulate
+
+import numpy as np
+import openpyxl
+import pandas as pd
+import matplotlib.pyplot as plt
+
+archivo_excel = "Conductores.xlsx"  # Reemplaza con la ruta de tu archivo Excel
+
+#%% SUBMENU PRINCIPAL
+def sub_menu():
+    while True:
+        print("\n Seleccióne la configuración de una torre de línea de transmisión trifásica:\n")
+        print("1. Simple circuito")
+        print("2. Doble circuito")
+        print("3. Volver al menú principal")
+        sub_opcion = input("Selecciona una opción: ")
+        
+        if sub_opcion == "1":
+            print("Has seleccionado --> Simple circuito\n")
+            NunConFas, matriz, x_coords, y_coords=crear_grafico("Circuito Simple", sub_opcion)
+            
+        elif sub_opcion == "2":
+            print("Has seleccionado --> Doble circuito\n")
+            NunConFas, matriz, x_coords, y_coords=crear_grafico("Circuito Doble", sub_opcion)            
+                        
+        elif sub_opcion == "3":
+            print("Volviendo al menú principal.")
+            break
+        else:
+            print("Opcion inválida. Introduce 1, 2 o 3.")
+            
+# Poner una linea de codigo para sacar subopcion
+# TUTORIAL()
+# Utilizar  output (Argumento de salida)
+# Sacar los argumentos de salida
+# HAcer un modulo de librerias en donde tenga todas mis funciones
+# Tengo que sacar las variables de la funcion 
+
+            
+#%%
+def crear_grafico(titulo, sub_opcion):
+    #TipConf = int(input("Ingrese el tipo de configuración (1 para Simple Circuito, 2 para Doble Circuito): "))
+    NunConFas = 4  # Número de subconductores por fase
+
+    posconf = []
+
+    if sub_opcion == "1":
+        for i in range(3):
+            x = float(input(f"Ingrese la posición en X para el punto a{i+1}: "))
+            y = float(input(f"Ingrese la posición en Y para el punto a{i+1}: "))
+            posconf.append([x, y])
+    elif sub_opcion == "2":
+        for i in range(6):
+            x = float(input(f"Ingrese la posición en X para el punto {'abc'[i%3]}{i//3+1}: "))
+            y = float(input(f"Ingrese la posición en Y para el punto {'abc'[i%3]}{i//3+1}: "))
+            posconf.append([x, y])
+
+    posconf = np.array(posconf)
+
+    # Imprimir el vector
+    print("El vector ingresado es:")
+    print(posconf)
+
+    # Matriz 3x2
+    matriz = posconf
+
+    # Extraer las coordenadas x y y de la matriz
+    x_coords = matriz[:, 0]
+    y_coords = matriz[:, 1]
+
+    # Crear el gráfico de dispersión
+    plt.scatter(x_coords, y_coords, color='blue', label='Coordenadas')
+
+    # Agregar etiquetas a los puntos usando annotate
+    for i, (x, y) in enumerate(matriz):
+        plt.annotate(f'({x}, {y})', (x, y), textcoords="offset points", xytext=(0, 10), ha='center', fontsize=9)
+
+    # Agregar título y etiquetas a los ejes
+    plt.title(titulo)
+    plt.xlabel('Eje X')
+    plt.ylabel('Eje Y')
+
+    # Mostrar leyenda
+    plt.legend()
+
+    # Mostrar el gráfico
+    plt.grid(True)
+    plt.show()
+    
+    pass
+
+    return NunConFas, matriz, x_coords, y_coords # Devuelve las variables que deseas acceder en el programa principal
+
+1
+
+#%% MENU PRINCIPAL
+
+def menu_principal():
+   while True:
+    
+    print("Seleccione el tipo de conductor:")
+    print("1. ACSR")
+    print("2. ACAR")
+    print("3. Salir")
+
+    opcion = input("Selecciona una opción:")
+
+    if opcion == "1":
+        hoja_seleccionada = "ACSR"  # Cambia al nombre de la primera hoja que deseas seleccionar
+        libro_trabajo = openpyxl.load_workbook(archivo_excel)
+        hoja = libro_trabajo[hoja_seleccionada]
+        libro_trabajo.close()
+        
+        print(f"-->Has seleccionado ACSR\n\n")
+        
+        print("Seleccione el nombre del conductor:\n\n")
+        
+        data_frame = pd.read_excel(archivo_excel, sheet_name=hoja_seleccionada)
+        
+
+         # TipoConductor = "ACAR"
+    # datos = pd.read_excel('Conductores.xlsx', sheet_name=TipoConductor, skiprows=[0, 1])
+    # datos.set_index('Codigo', inplace= True);
+         
+        fila_inicial = 3  # Fila desde la que deseas comenzar a desplegar los datos
+        columna_deseada = "Código"  # Cambia al nombre de la columna que deseas seleccionar
+    
+        # Filtra los datos a partir de la fila inicial y obtén los valores únicos de la columna deseada
+        valores_columna = data_frame.iloc[fila_inicial - 1:][columna_deseada].unique()
+        
+        
+        # Enumera los valores para mostrarlos con numeración
+        for indice, valor in enumerate(valores_columna, start=1):
+         print(f"{indice}. {valor}")
+
+        # Pide al usuario que seleccione una opción
+        opcion_seleccionada = int(input("Selecciona una opción: "))
+        
+
+        # Valida la opción seleccionada
+        if 1 <= opcion_seleccionada <= len(valores_columna):
+            valor_seleccionado = valores_columna[opcion_seleccionada - 1]
+            print(f"Has seleccionado: {valor_seleccionado}\n\n")
+        else:
+            print("Opción no válida.")
+    
+#%%
+        fila_deseada = opcion_seleccionada   # Por ejemplo, seleccionamos la fila 50
+        
+        fila_seleccionada = data_frame.iloc[fila_deseada + 1]  # Sumamos 1 porque los índices de pandas comienzan en 0
+
+        # Convertir la Serie a un arreglo
+        fila_seleccionada_array = fila_seleccionada.values
+
+        # tabla_fila = pd.DataFrame([fila_seleccionada_array])
+
+        # print(tabla_fila);
+        
+        #fila_informacion = data_frame.iloc[1]
+        fila_informacion= data_frame.iloc[1]
+        fila_informacion_array = fila_informacion.values
+        
+        fila_informacion_array = fila_informacion_array.reshape(-1, 1)
+        fila_seleccionada_array= fila_seleccionada_array.reshape(-1, 1)
+        
+        matriz_unida = np.column_stack((fila_informacion_array, fila_seleccionada_array));
+
+#%%        
+        #CodConductor = data_frame.index[valor_seleccionado]
+        Ds = (matriz_unida[6, 1])/1000 #RMG en m
+        diametro = (matriz_unida[5, 1])/1000 # Diametro total en m
+        rac75 = matriz_unida[12, 1] #resistencia AC a 75 C ohm/km
+        Incond = matriz_unida[13, 1]; #Corriente nomina del conductor en kA
+        
+        
+#%%        
+        print("\nDatos De Conductor:")
+        # print(matriz_unida)
+        
+        tabla = tabulate(matriz_unida, tablefmt="grid")
+        print(tabla)
+        
+        sub_menu()
+        
+#%%         
+    elif opcion == "2":
+        
+        hoja_seleccionada = "ACAR"  # Cambia al nombre de la segunda hoja que deseas seleccionar
+        libro_trabajo = openpyxl.load_workbook(archivo_excel)
+        hoja = libro_trabajo[hoja_seleccionada]
+        libro_trabajo.close()
+        
+        print(f"-->Has seleccionado ACAR\n\n")
+        
+        print("Seleccione el codigo del conductor:\n\n")
+        
+        data_frame = pd.read_excel(archivo_excel, sheet_name=hoja_seleccionada)
+
+        fila_inicial = 3  # Fila desde la que deseas comenzar a desplegar los datos
+        columna_deseada = "Código"  # Cambia al nombre de la columna que deseas seleccionar
+    
+        # Filtra los datos a partir de la fila inicial y obtén los valores únicos de la columna deseada
+        valores_columna = data_frame.iloc[fila_inicial - 1:][columna_deseada].unique()
+
+        # Enumera los valores para mostrarlos con numeración
+        for indice, valor in enumerate(valores_columna, start=1):
+          print(f"{indice}. {valor}")
+
+        # Pide al usuario que seleccione una opción
+        opcion_seleccionada = int(input("Selecciona una opción: "))
+
+        # Valida la opción seleccionada
+        if 1 <= opcion_seleccionada <= len(valores_columna):
+            valor_seleccionado = valores_columna[opcion_seleccionada - 1]
+            print(f"Has seleccionado: {valor_seleccionado}\n\n")
+        else:
+            print("Opción no válida.")
+#%%
+        fila_deseada = opcion_seleccionada   # Por ejemplo, seleccionamos la fila 50
+        
+        fila_seleccionada = data_frame.iloc[fila_deseada + 1]  # Sumamos 1 porque los índices de pandas comienzan en 0
+
+        # Convertir la Serie a un arreglo
+        fila_seleccionada_array = fila_seleccionada.values
+
+        # tabla_fila = pd.DataFrame([fila_seleccionada_array])
+
+        # print(tabla_fila);
+        
+        #fila_informacion = data_frame.iloc[1]
+        fila_informacion= data_frame.iloc[1]
+        fila_informacion_array = fila_informacion.values
+        
+        fila_informacion_array = fila_informacion_array.reshape(-1, 1)
+        fila_seleccionada_array= fila_seleccionada_array.reshape(-1, 1)
+        
+        matriz_unida = np.column_stack((fila_informacion_array, fila_seleccionada_array));
+        
+#%%
+        #CodConductor = data_frame.index[valor_seleccionado]
+        Ds = (matriz_unida[4, 1])/1000 #RMG en m
+        diametro = (matriz_unida[3, 1])/1000 # Diametro total en m
+        rac75 = matriz_unida[10, 1] #resistencia AC a 75 C ohm/km
+        Incond = matriz_unida[11, 1]; #Corriente nomina del conductor en kA
+        
+#%%        
+        print("\nDatos De Conductor:")
+        # print(matriz_unida)
+        
+        tabla = tabulate(matriz_unida, tablefmt="grid")
+        print(tabla) 
+        
+        sub_menu()
+        
+#%%            
+        
+    #Aqui hay que modificar para que devuelva al submenu    
+    elif opcion == "3":
+        print("Saliendo del programa.")
+        break
+    else:
+        print("Opción no válida.")
+
+# Programa principal
+menu_principal()
