@@ -4,270 +4,1094 @@ Created on Tue Aug 29 15:50:41 2023
 
 @author: Kevin
 """
-from numpy import array
-from tabulate import tabulate
-
 import numpy as np
 import openpyxl
 import pandas as pd
+import math
 import matplotlib.pyplot as plt
+from tabulate import tabulate
 
-archivo_excel = "Conductores.xlsx"  # Reemplaza con la ruta de tu archivo Excel
+archivo_excel = "Conductores.xlsx"
 
-#%% SUBMENU PRINCIPAL
-def sub_menu():
+
+#%%
+def ingresar_posiciones(num_puntos):
+    posconf = []
+
+    for i in range(num_puntos):
+        x = float(input(f"Ingrese la posición en X para el punto a{i+1}: "))
+        y = float(input(f"Ingrese la posición en Y para el punto a{i+1}: "))
+        posconf.append([x, y])
+
+    posconf = np.array(posconf)
+    print("\nEl vector ingresado es:")
+    print(posconf)
+
+    return posconf
+
+#%% CALCULO LINEAS
+
+def calculo_lineas(rp, L, C):
+
+    print("\n<<CALCULO DE LINEAS>>")
+    Long = float(input("\nIngrese el valor de la longitud de la línea en Km: "))
+    f = float(input("\nIngrese el valor de la frecuencia en Hz: "))
+#C = float(input("Ingrese el valor de la capacitancia: "))
+
+    j = 1j
+
+    z = rp + (2 * np.pi * L * f * j)*0.001
+    y = (2 * np.pi*f* C*j)*0.000001
+
+    if Long < 80:
+        print("\nEstás dentro de línea corta")
+        z1 = z * Long
+        caso = int(input("\nIngrese el caso de estudio (1 conocidos datos (recibo) ó 2 conocidos datos (envio)): "))
+    
+        if caso == 1:
+            # Conocidos datos de recibo
+            Sr_real = float(input("\nIngrese la potencia activa de recibo en (MW) : "))
+            Sr_imag = float(input("\nIngrese la potencia reactiva de recibo en (MVAr): "))
+            Vrf_real = float(input("\nIngrese el voltaje en la carga (KV): "))
+            Vrf_imag = 0j
+            Sr = complex(Sr_real, Sr_imag)
+            Vrf = complex(Vrf_real, Vrf_imag)
+            Vrn = Vrf / np.sqrt(3)
+            Ir1 = Sr / (3 * Vrn)
+            Ir = Ir1.conjugate()
+        
+            a = 1
+            b = z1
+            c = 0
+            d = 1
+        
+            # Crear una matriz de 2x2 usando listas anidadas
+            matrizABCD = np.array([[a, b], [c, d]])
+
+            # Imprimir la matriz
+            print("\nMatriz ABCD:")
+            print(matrizABCD)
+        
+            matriz2 = np.array([[Vrn], [Ir]])
+            MatrizEn = np.dot(matrizABCD, matriz2)
+
+            Vg = MatrizEn[0, 0]
+            Ig = MatrizEn[1, 0]
+
+            Sg = 3 * Vg * (Ig.conjugate())
+            Pg = Sg.real
+            Qg=Sg.imag
+
+            SL = Sg - Sr
+            PL=SL.real
+            QL=SL.imag
+
+            Vrnl = abs(Vg) / abs(a)
+            Vrflu = abs(Vrn)
+
+            Rv = ((Vrnl - Vrflu) / Vrflu) * 100
+
+            n = (Sr.real / Pg) * 100
+
+            # Imprimir los resultados
+            # print("\nMatriz ABCD:")
+            # print(matrizABCD)
+            print("\nMatriz de Resultados:")
+            print(MatrizEn)
+            # print("Voltaje recibo:",abs(Vrf))
+            # print("Corriente de recibo:",abs(Ir))
+            # print("Regulacion (%):", Rv)
+            # print("Eficiencia (%):", n)
+            # print("Voltage de envio L-L es (KV):", abs(Vg*np.sqrt(3)))
+            # print("Corriente de envio L-L es (KA):",Ig)
+            # print("Potencia activa de envio  (MW):",Pg)
+            # print("Potencia reactiva de envio  (MVAR):",Qg)
+            # print("Las pérdidas de la línea en Potencia activa (MW):", PL)
+            # print("Las pérdidas de la línea en Potencia Reactiva (MVAR):", QL)
+            
+            array_caracteres_np = np.array(['Voltaje recibo'
+                                        ,'Corriente de recibo'
+                                        ,'Regulacion'
+                                        ,'Eficiencia'
+                                        ,'Voltage de envio L-L'
+                                        ,'Corriente de envio L-L'
+                                        ,'Potencia activa de envio'
+                                        ,'Potencia reactiva de envio'
+                                        ,'Las pérdidas de la línea en Potencia activa'
+                                        ,'Las pérdidas de la línea en Potencia Reactiva'])
+            
+            array_unidades_np = np.array(['(KV)'
+                                      ,'(KA)'
+                                      ,'(%)'
+                                      ,'(%)'
+                                      ,'(KV)'
+                                      ,'(KA)'
+                                      ,'(MW)'
+                                      ,'(MVAR)'
+                                      ,'(MW)'
+                                      ,'(MVAR)'])
+            
+            array_parametros_np = np.array([abs(Vrf)
+                                      ,abs(Ir)
+                                      ,Rv
+                                      ,n
+                                      ,abs(Vg*np.sqrt(3))
+                                      ,abs(Ig)
+                                      ,Pg
+                                      ,Qg
+                                      ,PL
+                                      ,QL])
+            array_parametros_np_red=[round(num, 4) for num in array_parametros_np]
+            array_parametros_np_red= np.array(array_parametros_np_red, dtype=np.float64)
+            
+            matriz_resultados_recibo = np.column_stack((array_caracteres_np, array_unidades_np, array_parametros_np_red))
+            print("\nRESULTADOS:")
+            tabla_resultados_recibo = tabulate(matriz_resultados_recibo, tablefmt="grid")
+            print(tabla_resultados_recibo)
+            
+        else:
+        # Conocidos datos de envío
+            Sg_real = float(input("\nIngrese la potencia activa de envio en (MW) : "))
+            Sg_imag = float(input("\nIngrese la potencia reactiva de envio en (MVAR): "))
+            Veg_real = float(input("\nIngrese en voltaje de envio(KV): "))
+            Veg_imag = 0j
+        
+            Sg = complex(Sg_real, Sg_imag)
+            Vg = complex(Veg_real, Veg_imag)
+            Vgn = Vg / np.sqrt(3)
+            Ig1 = Sg / (3 * Vgn)
+            Ig = Ig1.conjugate()
+        
+            a = 1
+            b = z1
+            c = 0
+            d = 1
+            
+            # Crear una matriz de 2x2 usando listas anidadas
+            matrizABCD = np.array([[a, b], [c, d]])
+    
+            # Imprimir la matriz
+            print("\nMatriz ABCD:")
+            print(matrizABCD)
+            
+            inmatrizABCD = np.linalg.inv(matrizABCD)
+    
+            matriz2 = np.array([[Vgn], [Ig]])
+            MatrizEn = np.dot(inmatrizABCD, matriz2)
+    
+            Vrn = MatrizEn[0, 0]
+            Ir = MatrizEn[1, 0]
+    
+            Sr = 3 * Vrn * (Ir.conjugate())
+            Pr = Sr.real
+            Qr=Sr.imag
+    
+            SL = Sg - Sr
+            PL=SL.real
+            QL=SL.imag
+    
+            Vrnl = abs(Vgn) / abs(a)
+            Vrflu = abs(Vrn)
+    
+            Rv = ((Vrnl - Vrflu) / Vrflu) * 100
+    
+            n = (Pr / Sg_real) * 100
+    
+            # Imprimir los resultados
+            # print("\nMatriz ABCD:")
+            # print(matrizABCD)
+            print("\nMatriz de Resultados:")
+            print(MatrizEn)
+            # print("Voltaje envio(KV):",abs(Vg))
+            # print("Corriente de envio(KA):",abs(Ig))
+            # print("Regulacion (%):", Rv)
+            # print("Eficiencia (%):", n)
+            # print("Voltage de recibo L-L es (KV):", abs(Vrn*np.sqrt(3)))
+            # print("Corriente de recibo L-L es (KA):",abs(Ir))
+            # print("Potencia activa de recibo  (MW):",Pr)
+            # print("Potencia reactiva de resibo  (MVAR):",Qr)
+            # print("Las pérdidas de la línea en Potencia activa (MW):", PL)
+            # print("Las pérdidas de la línea en Potencia Reactiva (MVAR):", QL)
+            
+            array_caracteres_np = np.array(['Voltaje envio'
+                                        ,'Corriente de envio'
+                                        ,'Regulacion'
+                                        ,'Eficiencia'
+                                        ,'Voltage de recibo L-L'
+                                        ,'Corriente de recibo L-L'
+                                        ,'Potencia activa de recibo'
+                                        ,'Potencia reactiva de recibo'
+                                        ,'Las pérdidas de la línea en Potencia Activa'
+                                        ,'Las pérdidas de la línea en Potencia Reactiva'])
+            
+            array_unidades_np = np.array(['(KV)'
+                                      ,'(KA)'
+                                      ,'(%)'
+                                      ,'(%)'
+                                      ,'(KV)'
+                                      ,'(KA)'
+                                      ,'(MW)'
+                                      ,'(MVAR)'
+                                      ,'(MW)'
+                                      ,'(MVAR)'])
+            
+            array_parametros_np = np.array([abs(Vg)
+                                      ,abs(Ig)
+                                      ,Rv
+                                      ,n
+                                      ,abs(Vrn*np.sqrt(3))
+                                      ,abs(Ir)
+                                      ,Pr
+                                      ,Qr
+                                      ,PL
+                                      ,QL])
+            
+            array_parametros_np_red=[round(num, 4) for num in array_parametros_np]
+            array_parametros_np_red= np.array(array_parametros_np_red, dtype=np.float64)
+            
+            matriz_resultados_envio = np.column_stack((array_caracteres_np, array_unidades_np, array_parametros_np_red))
+            print("\nRESULTADOS:")
+            tabla_resultados_envio = tabulate(matriz_resultados_envio, tablefmt="grid")
+            print(tabla_resultados_envio)
+
+
+    elif 80 <= Long < 250:
+        print("\nEstás dentro de línea media")
+        z1 = z * Long
+        y1 = y * Long
+        caso = int(input("\nIngrese el caso de estudio (1 conocidos datos (recibo) ó 2 conocidos datos (envio)): "))
+        
+        if caso == 1:
+            # Conocidos datos de recibo
+            Sp_real = float(input("\nIngrese la potencia activa de recibo en (MW) : "))
+            Sp_imag = float(input("\nIngrese la potencia reactiva de recibo en (MVAr): "))
+            Vrf_real = float(input("\nIngrese el voltaje en la carga (KV): "))
+            Vrf_imag =0j
+             
+            Sp = complex(Sp_real, Sp_imag)
+            Vrf = complex(Vrf_real, Vrf_imag)
+            Vrfn = Vrf / np.sqrt(3)
+            Ir = Sp / (3 * Vrfn)
+            Irr = Ir.conjugate()
+            
+            a = 1 + (z1 * y1) / 2
+            b = z1
+            c = y1 * (1 + (z1 * y1) / 4)
+            d = 1 + (z1 * y1) / 2
+            
+            # Crear una matriz de 2x2 usando listas anidadas
+            matrizABCD = np.array([[a, b], [c, d]])
+    
+            # Imprimir la matriz
+            print("\nMatriz ABCD:")
+            print(matrizABCD)
+    
+            matriz2 = np.array([[Vrfn], [Irr]])
+    
+            print("\nMatriz 2:")
+            print(matriz2)
+    
+            MatrizEn = np.dot(matrizABCD, matriz2)
+    
+            Vg = MatrizEn[0, 0]
+            Ig = MatrizEn[1, 0]
+    
+            Sg = 3 * Vg * (Ig.conjugate())
+            Pg = Sg.real
+            Qg=Sg.imag
+    
+            SL = Sg - Sp
+            PL=SL.real
+            QL=SL.imag
+            
+            Vrnl = abs(Vg) / abs(a)
+            Vrflu = abs(Vrfn)
+    
+            Rv = ((Vrnl - Vrflu) / Vrflu) * 100
+    
+            n = (Sp.real / Pg) * 100
+    
+            # Imprimir los resultados
+            # print("\nMatriz ABCD:")
+            # print(matrizABCD)
+            print("\nMatriz de Resultados:")
+            print(MatrizEn)
+            # print("Voltaje recibo(KV):",abs(Vrf))
+            # print("Corriente de recibo (KA):",abs(Irr))
+            # print("Regulacion (%):", Rv)
+            # print("Eficiencia (%):", n)
+            # print("Voltage de envio L-L es (KV):", abs(Vg*np.sqrt(3)))
+            # print("Corriente de envio L-L es (KA):", abs(Ig))
+            # print("Potencia activa de envio  (MW):",Pg)
+            # print("Potencia reactiva de envio  (MVAR):",Qg)
+            # print("Las pérdidas de la línea en Potencia activa (MW):", PL)
+            # print("Las pérdidas de la línea en Potencia Reactiva (MVAR):", QL)
+            
+            array_caracteres_np = np.array(['Voltaje recibo'
+                                        ,'Corriente de recibo'
+                                        ,'Regulacion'
+                                        ,'Eficiencia'
+                                        ,'Voltage de envio L-L'
+                                        ,'Corriente de envio L-L'
+                                        ,'Potencia activa de envio'
+                                        ,'Potencia reactiva de envio'
+                                        ,'Las pérdidas de la línea en Potencia activa'
+                                        ,'Las pérdidas de la línea en Potencia Reactiva'])
+            
+            array_unidades_np = np.array(['(KV)'
+                                      ,'(KA)'
+                                      ,'(%)'
+                                      ,'(%)'
+                                      ,'(KV)'
+                                      ,'(KA)'
+                                      ,'(MW)'
+                                      ,'(MVAR)'
+                                      ,'(MW)'
+                                      ,'(MVAR)'])
+            
+            array_parametros_np = np.array([abs(Vrf)
+                                      ,abs(Irr)
+                                      ,Rv
+                                      ,n
+                                      ,abs(Vg*np.sqrt(3))
+                                      ,abs(Ig)
+                                      ,Pg
+                                      ,Qg
+                                      ,PL
+                                      ,QL])
+            
+            array_parametros_np_red=[round(num, 4) for num in array_parametros_np]
+            array_parametros_np_red= np.array(array_parametros_np_red, dtype=np.float64)
+            
+            matriz_resultados_recibo = np.column_stack((array_caracteres_np, array_unidades_np, array_parametros_np_red))
+            print("\nRESULTADOS:")
+            tabla_resultados_recibo = tabulate(matriz_resultados_recibo, tablefmt="grid")
+            print(tabla_resultados_recibo)
+            
+            
+        else:
+            # Conocidos datos de envío
+            Sg_real = float(input("\nIngrese la potencia activa de envio en (MW) : "))
+            Sg_imag = float(input("\nIngrese la potencia reactivg de envio en (MVAR): "))
+            Veg_real = float(input("\nIngrese el voltaje de envio en (KV): "))
+            Veg_imag = 0j
+            
+            Sg = complex(Sg_real, Sg_imag)
+            Vg = complex(Veg_real, Veg_imag)
+            Vgn = Vg / np.sqrt(3)
+            Ig1 = Sg / (3 * Vgn)
+            Ig = Ig1.conjugate()
+            
+            a = 1 + (z1 * y1) / 2
+            b = z1
+            c = y1 * (1 + (z1 * y1) / 4)
+            d = 1 + (z1 * y1) / 2
+            
+            # Crear una matriz de 2x2 usando listas anidadas
+            matrizABCD = np.array([[a, b], [c, d]])
+    
+            # Imprimir la matriz
+            print("\nMatriz ABCD:")
+            print(matrizABCD)
+            
+            inmatrizABCD = np.linalg.inv(matrizABCD)
+    
+            matriz2 = np.array([[Vgn], [Ig]])
+            MatrizEn = np.dot(inmatrizABCD, matriz2)
+    
+            Vrn = MatrizEn[0, 0]
+            Ir = MatrizEn[1, 0]
+    
+            Sr = 3 * Vrn * (Ir.conjugate())
+            Pr = Sr.real
+            Qr=Sr.imag
+    
+            SL = Sg - Sr
+            PL=SL.real
+            QL=SL.imag
+    
+            Vrnl = abs(Vgn) / abs(a)
+            Vrflu = abs(Vrn)
+    
+            Rv = ((Vrnl - Vrflu) / Vrflu) * 100
+    
+            n = (Pr / Sg_real) * 100
+    
+            # Imprimir los resultados
+            # print("\nMatriz ABCD:")
+            # print(matrizABCD)
+            print("\nMatriz de Resultados:")
+            print(MatrizEn)
+            # print("Voltaje envio (KV):",abs(Vg))
+            # print("Corriente de envio (KA):",abs(Ig))
+            # print("Regulacion (%):", Rv)
+            # print("Eficiencia (%):", n)
+            # print("Voltage de recibo L-L es (KV):", abs(Vrn*np.sqrt(3)))
+            # print("Corriente de recibo L-L es (KA):",abs(Ir))
+            # print("Potencia activa de recibo  (MW):",Pr)
+            # print("Potencia reactiva de recibo  (MVAR):",Qr)
+            # print("Las pérdidas de la línea en Potencia activa (MW):", PL)
+            # print("Las pérdidas de la línea en Potencia Reactiva (MVAR):", QL)
+            
+            array_caracteres_np = np.array(['Voltaje envio'
+                                        ,'Corriente de envio'
+                                        ,'Regulacion'
+                                        ,'Eficiencia'
+                                        ,'Voltage de recibo L-L'
+                                        ,'Corriente de recibo L-L'
+                                        ,'Potencia activa de recibo'
+                                        ,'Potencia reactiva de recibo'
+                                        ,'Las pérdidas de la línea en Potencia Activa'
+                                        ,'Las pérdidas de la línea en Potencia Reactiva'])
+            
+            array_unidades_np = np.array(['(KV)'
+                                      ,'(KA)'
+                                      ,'(%)'
+                                      ,'(%)'
+                                      ,'(KV)'
+                                      ,'(KA)'
+                                      ,'(MW)'
+                                      ,'(MVAR)'
+                                      ,'(MW)'
+                                      ,'(MVAR)'])
+            
+            array_parametros_np = np.array([abs(Vg)
+                                      ,abs(Ig)
+                                      ,Rv
+                                      ,n
+                                      ,abs(Vrn*np.sqrt(3))
+                                      ,abs(Ir)
+                                      ,Pr
+                                      ,Qr
+                                      ,PL
+                                      ,QL])
+            
+            array_parametros_np_red=[round(num, 4) for num in array_parametros_np]
+            array_parametros_np_red= np.array(array_parametros_np_red, dtype=np.float64)
+            
+            matriz_resultados_envio = np.column_stack((array_caracteres_np, array_unidades_np, array_parametros_np_red))
+            print("\nRESULTADOS:")
+            tabla_resultados_envio = tabulate(matriz_resultados_envio, tablefmt="grid")
+            print(tabla_resultados_envio)
+        
+    else:
+        
+        print("\nEstás dentro de línea larga")
+        caso = int(input("\nIngrese el caso de estudio (1 conocidos datos (recibo) ó 2 conocidos datos (envio)): "))
+        
+        if caso == 1:
+            # Conocidos datos de recibo
+            Sr_real = float(input("\nIngrese la potencia activa de recibo en (MW) : "))
+            Sr_imag = float(input("\nIngrese la potencia reactiva de recibo en (MVAr): "))
+            Vrf_real = float(input("\nIngrese el voltaje en la carga  (KV): "))
+            Vrf_imag = 0j
+            
+            Sr = complex(Sr_real, Sr_imag)
+            Vrf = complex(Vrf_real, Vrf_imag)
+            Vrff = Vrf / np.sqrt(3)
+            Ir = np.conjugate(Sr / (3 * Vrff))
+    
+            cp = np.sqrt(y * z) * Long
+            cpr = cp * (math.pi / 180)
+            a = np.cosh(cp)
+            zc = np.sqrt(z / y)
+            b = zc * np.sinh(cp)
+            c = (1 / zc) * np.sinh(cp)
+            d = a
+    
+            # Crear una matriz de 2x2 usando listas anidadas
+            matrizABCD = np.array([[a, b], [c, d]])
+    
+            # Imprimir la matriz
+            print("\nMatriz ABCD:")
+            print(matrizABCD)
+    
+            matriz2 = np.array([[Vrff], [Ir]])
+    
+            print("\nMatriz 2:")
+            print(matriz2)
+    
+            MatrizEn = np.dot(matrizABCD, matriz2)
+    
+            Vg = MatrizEn[0, 0]
+            Ig = MatrizEn[1, 0]
+            Igc=Ig.conjugate()
+            Sg = 3 * Vg * Igc
+            Pg = Sg.real
+            
+            Qg=Sg.imag
+    
+            SL = Sg-Sr
+            PL=SL.real
+            QL=SL.imag
+            Vrnl = abs(Vg) / abs(a)
+            Vrflu = abs(Vrff)
+    
+            Rv = ((Vrnl - Vrflu) / Vrflu) * 100
+    
+            n = (Sr_real / Pg) * 100
+    
+            # Imprimir los resultados
+            # print("\nMatriz ABCD:")
+            # print(matrizABCD)
+            print("\nMatriz de Resultados:")
+            print(MatrizEn)
+            # print("Voltaje recibo (KV):",abs(Vrf))
+            # print("Corriente de recibo (KA):",abs(Ir))
+            # print("Regulacion (%):", Rv)
+            # print("Eficiencia (%):", n)
+            # print("Voltage de envio L-L es (KV):", abs(Vg*np.sqrt(3)))
+            # print("Corriente de envio L-L es (KA):", abs(Ig))
+            # print("Potencia activa de envio  (MW):",Pg)
+            # print("Potencia reactiva de envio  (MVAR):",Qg) 
+            # print("Las pérdidas de la línea en Potencia activa (MW):", PL)
+            # print("Las pérdidas de la línea en Potencia Reactiva (MVAR):", QL)
+            
+            array_caracteres_np = np.array(['Voltaje recibo'
+                                        ,'Corriente de recibo'
+                                        ,'Regulacion'
+                                        ,'Eficiencia'
+                                        ,'Voltage de envio L-L'
+                                        ,'Corriente de envio L-L'
+                                        ,'Potencia activa de envio'
+                                        ,'Potencia reactiva de envio'
+                                        ,'Las pérdidas de la línea en Potencia activa'
+                                        ,'Las pérdidas de la línea en Potencia Reactiva'])
+            
+            array_unidades_np = np.array(['(KV)'
+                                      ,'(KA)'
+                                      ,'(%)'
+                                      ,'(%)'
+                                      ,'(KV)'
+                                      ,'(KA)'
+                                      ,'(MW)'
+                                      ,'(MVAR)'
+                                      ,'(MW)'
+                                      ,'(MVAR)'])
+            
+            array_parametros_np = np.array([abs(Vrf)
+                                      ,abs(Ir)
+                                      ,Rv
+                                      ,n
+                                      ,abs(Vg*np.sqrt(3))
+                                      ,abs(Ig)
+                                      ,Pg
+                                      ,Qg
+                                      ,PL
+                                      ,QL])
+            
+            array_parametros_np_red=[round(num, 4) for num in array_parametros_np]
+            array_parametros_np_red= np.array(array_parametros_np_red, dtype=np.float64)
+            
+            
+            matriz_resultados_recibo = np.column_stack((array_caracteres_np, array_unidades_np, array_parametros_np_red))
+            print("\nRESULTADOS:")
+            tabla_resultados_recibo = tabulate(matriz_resultados_recibo, tablefmt="grid")
+            print(tabla_resultados_recibo)
+            
+            
+        else:
+            # Conocidos datos de envío
+            Sg_real = float(input("\nIngrese la potencia activa de envio en (MW) : "))
+            Sg_imag = float(input("\nIngrese la potencia reactiva de envio en (MVAr): "))
+            Vg_real = float(input("\nIngrese el voltaje de envio (KV): "))
+            Vg_imag = 0j
+            
+            Sg = complex(Sg_real, Sg_imag)
+            Vg = complex(Vg_real, Vg_imag)
+            Vgn = Vg / np.sqrt(3)
+            Ig1 = Sg / (3 * Vgn)
+            Ig = Ig1.conjugate()
+            cp = np.sqrt(y * z) * Long
+            
+            a = np.cosh(cp)
+            zc = np.sqrt(z / y)
+            b = zc * np.sinh(cp)
+            c = (1 / zc) * np.sinh(cp)
+            d = a
+    
+            # Crear una matriz de 2x2 usando listas anidadas
+            matrizABCD = np.array([[a, b], [c, d]])
+    
+            # Imprimir la matriz
+            print("\nMatriz ABCD:")
+            print(matrizABCD)
+    
+            inmatrizABCD = np.linalg.inv(matrizABCD)
+    
+            matriz2 = np.array([[Vgn], [Ig]])
+    
+            print("\nMatriz 2:")
+            print(matriz2)
+    
+            MatrizEn = np.dot(inmatrizABCD, matriz2)
+    
+            Vrn = MatrizEn[0, 0]
+            Ir = MatrizEn[1, 0]
+    
+            Sr = 3 * Vrn * (Ir.conjugate())
+            Pr = Sr.real
+            Qr=Sr.imag
+    
+            SL = Sg - Sr
+            PL=SL.real
+            QL=SL.imag
+    
+            Vrnl = abs(Vgn) / abs(a)
+            Vrflu = abs(Vrn)
+    
+            Rv = ((Vrnl - Vrflu) / Vrflu) * 100
+    
+            n = (Pr / Sg_real) * 100
+    
+            # Imprimir los resultados
+            # print("\nMatriz ABCD:")
+            # print(matrizABCD)
+            print("\nMatriz de Resultados:")
+            print(MatrizEn)
+            # print("\nVoltaje envio (KV):",abs(Vg))
+            # print("\nCorriente de envio (KA):",abs(Ig))
+            # print("\nRegulacion (%):", Rv)
+            # print("\nEficiencia (%):", n)
+            # print("\nVoltage de recibo L-L es (KV):", abs(Vrn*np.sqrt(3)))
+            # print("\nCorriente de recibo L-L es (KA):", abs(Ir))
+            # print("\nPotencia activa de recibo  (MW):",Pr)
+            # print("\nPotencia reactiva de recibo  (MVAR):",Qr)    
+            # print("\nLas pérdidas de la línea en Potencia activa (MW):", PL)
+            # print("\nLas pérdidas de la línea en Potencia Reactiva (MVAR):", QL)
+            
+            
+            array_caracteres_np = np.array(['Voltaje envio'
+                                        ,'Corriente de envio'
+                                        ,'Regulacion'
+                                        ,'Eficiencia'
+                                        ,'Voltage de recibo L-L'
+                                        ,'Corriente de recibo L-L'
+                                        ,'Potencia activa de recibo'
+                                        ,'Potencia reactiva de recibo'
+                                        ,'Las pérdidas de la línea en Potencia Activa'
+                                        ,'Las pérdidas de la línea en Potencia Reactiva'])
+            
+            array_unidades_np = np.array(['(KV)'
+                                      ,'(KA)'
+                                      ,'(%)'
+                                      ,'(%)'
+                                      ,'(KV)'
+                                      ,'(KA)'
+                                      ,'(MW)'
+                                      ,'(MVAR)'
+                                      ,'(MW)'
+                                      ,'(MVAR)'])
+            
+            array_parametros_np = np.array([abs(Vg)
+                                      ,abs(Ig)
+                                      ,Rv
+                                      ,n
+                                      ,abs(Vrn*np.sqrt(3))
+                                      ,abs(Ir)
+                                      ,Pr
+                                      ,Qr
+                                      ,PL
+                                      ,QL])
+            
+            array_parametros_np_red=[round(num, 5) for num in array_parametros_np]
+            array_parametros_np_red= np.array(array_parametros_np_red, dtype=np.float64)
+            
+            matriz_resultados_envio = np.column_stack((array_caracteres_np, array_unidades_np, array_parametros_np_red))
+            print("\nRESULTADOS:")
+            tabla_resultados_envio = tabulate(matriz_resultados_envio, tablefmt="grid")
+            print(tabla_resultados_envio)
+
+            return rp, L, C #Aqui puse lo ultimo
+#%% SUB_MENU_PRINCIPAL
+
+def sub_menu(Ds, diametro, rac75, rp, L, C):
+    
+    
     while True:
-        print("\n Seleccióne la configuración de una torre de línea de transmisión trifásica:\n")
+        print("\nSeleccione la configuración de una torre de línea de transmisión trifásica:\n")
         print("1. Simple circuito")
         print("2. Doble circuito")
         print("3. Volver al menú principal")
-        sub_opcion = input("Selecciona una opción: ")
+        sub_opcion = input("Seleccione una opción: ")
         
         if sub_opcion == "1":
-            print("Has seleccionado --> Simple circuito\n")
-            NunConFas, matriz, x_coords, y_coords=crear_grafico("Circuito Simple", sub_opcion)
+            print("Ha seleccionado --> Simple circuito\n")
+            posconf = ingresar_posiciones(3)
+            NunConFas, matriz, x_coords, y_coords = crear_grafico("Circuito Simple", sub_opcion, posconf)
+            # calculo_distancias(Ds, diametro, rac75, sub_opcion, posconf)
+            rp, L, C = calculo_distancias(Ds, diametro, rac75, sub_opcion, posconf, rp, L, C)
+            calculo_lineas(rp, L, C)
             
         elif sub_opcion == "2":
-            print("Has seleccionado --> Doble circuito\n")
-            NunConFas, matriz, x_coords, y_coords=crear_grafico("Circuito Doble", sub_opcion)            
-                        
+            print("Ha seleccionado --> Doble circuito\n")
+            posconf = ingresar_posiciones(6)
+            NunConFas, matriz, x_coords, y_coords = crear_grafico("Circuito Doble", sub_opcion, posconf)
+            # calculo_distancias(Ds, diametro, rac75, sub_opcion, posconf)
+            rp, L, C = calculo_distancias(Ds, diametro, rac75, sub_opcion, posconf, rp, L, C)
+            calculo_lineas(rp, L, C)
+            
         elif sub_opcion == "3":
             print("Volviendo al menú principal.")
             break
         else:
-            print("Opcion inválida. Introduce 1, 2 o 3.")
-            
-# Poner una linea de codigo para sacar subopcion
-# TUTORIAL()
-# Utilizar  output (Argumento de salida)
-# Sacar los argumentos de salida
-# HAcer un modulo de librerias en donde tenga todas mis funciones
-# Tengo que sacar las variables de la funcion 
+            print("Opción inválida. Introduzca 1, 2 o 3.")
 
-            
-#%%
-def crear_grafico(titulo, sub_opcion):
-    #TipConf = int(input("Ingrese el tipo de configuración (1 para Simple Circuito, 2 para Doble Circuito): "))
-    NunConFas = 4  # Número de subconductores por fase
+    return rp, L, C #ESTE PUSE AQUI AL ULTIMO
+#%% CREAR GRAFICO
+def crear_grafico(titulo, sub_opcion, posconf):
+    NunConFas = 4
 
-    posconf = []
-
-    if sub_opcion == "1":
-        for i in range(3):
-            x = float(input(f"Ingrese la posición en X para el punto a{i+1}: "))
-            y = float(input(f"Ingrese la posición en Y para el punto a{i+1}: "))
-            posconf.append([x, y])
-    elif sub_opcion == "2":
-        for i in range(6):
-            x = float(input(f"Ingrese la posición en X para el punto {'abc'[i%3]}{i//3+1}: "))
-            y = float(input(f"Ingrese la posición en Y para el punto {'abc'[i%3]}{i//3+1}: "))
-            posconf.append([x, y])
-
-    posconf = np.array(posconf)
-
-    # Imprimir el vector
-    print("El vector ingresado es:")
-    print(posconf)
-
-    # Matriz 3x2
     matriz = posconf
-
-    # Extraer las coordenadas x y y de la matriz
     x_coords = matriz[:, 0]
     y_coords = matriz[:, 1]
 
-    # Crear el gráfico de dispersión
     plt.scatter(x_coords, y_coords, color='blue', label='Coordenadas')
 
-    # Agregar etiquetas a los puntos usando annotate
     for i, (x, y) in enumerate(matriz):
         plt.annotate(f'({x}, {y})', (x, y), textcoords="offset points", xytext=(0, 10), ha='center', fontsize=9)
 
-    # Agregar título y etiquetas a los ejes
     plt.title(titulo)
     plt.xlabel('Eje X')
     plt.ylabel('Eje Y')
 
-    # Mostrar leyenda
     plt.legend()
 
-    # Mostrar el gráfico
     plt.grid(True)
     plt.show()
     
-    pass
-
-    return NunConFas, matriz, x_coords, y_coords # Devuelve las variables que deseas acceder en el programa principal
-
-1
-
-#%% MENU PRINCIPAL
-
-def menu_principal():
-   while True:
+    return NunConFas, matriz, x_coords, y_coords
+#%% CALCULO DISTANCIAS
+def calculo_distancias(Ds, diametro, rac75, sub_opcion, posconf, rp, L, C):
+    r = diametro / 2
+    print("\n<<CALCULOS DE COMPONENTES PASIVOS>>")
     
-    print("Seleccione el tipo de conductor:")
-    print("1. ACSR")
-    print("2. ACAR")
-    print("3. Salir")
+    if sub_opcion == "1":
+        a1, b1, c1 = posconf
+        print("a1:", a1)
+        print("b1:", b1)
+        print("c1:", c1)
+    elif sub_opcion == "2":
+        a1, b1, c1, a2, b2, c2 = posconf
+        print("a1:", a1)
+        print("b1:", b1)
+        print("c1:", c1)
+        print("a2:", a2)
+        print("b2:", b2)
+        print("c2:", c2)
 
-    opcion = input("Selecciona una opción:")
+    distances = np.linalg.norm(posconf[:, np.newaxis, :] - posconf[np.newaxis, :, :], axis=2)
 
-    if opcion == "1":
-        hoja_seleccionada = "ACSR"  # Cambia al nombre de la primera hoja que deseas seleccionar
-        libro_trabajo = openpyxl.load_workbook(archivo_excel)
-        hoja = libro_trabajo[hoja_seleccionada]
-        libro_trabajo.close()
-        
-        print(f"-->Has seleccionado ACSR\n\n")
-        
-        print("Seleccione el nombre del conductor:\n\n")
-        
-        data_frame = pd.read_excel(archivo_excel, sheet_name=hoja_seleccionada)
-        
+    if sub_opcion == "1":
+        dist_a1_b1 = distances[0, 1]
+        dist_a1_c1 = distances[0, 2]
+        dist_b1_c1 = distances[1, 2]
+        GMD = (dist_a1_b1 * dist_a1_c1 * dist_b1_c1) ** (1 / 3)
 
-         # TipoConductor = "ACAR"
-    # datos = pd.read_excel('Conductores.xlsx', sheet_name=TipoConductor, skiprows=[0, 1])
-    # datos.set_index('Codigo', inplace= True);
-         
-        fila_inicial = 3  # Fila desde la que deseas comenzar a desplegar los datos
-        columna_deseada = "Código"  # Cambia al nombre de la columna que deseas seleccionar
-    
-        # Filtra los datos a partir de la fila inicial y obtén los valores únicos de la columna deseada
-        valores_columna = data_frame.iloc[fila_inicial - 1:][columna_deseada].unique()
-        
-        
-        # Enumera los valores para mostrarlos con numeración
-        for indice, valor in enumerate(valores_columna, start=1):
-         print(f"{indice}. {valor}")
+        while True:
+            Nunf = int(input("\nIngrese un número de subconductores por fase (1, 2, 3 o 4): "))
 
-        # Pide al usuario que seleccione una opción
-        opcion_seleccionada = int(input("Selecciona una opción: "))
-        
-
-        # Valida la opción seleccionada
-        if 1 <= opcion_seleccionada <= len(valores_columna):
-            valor_seleccionado = valores_columna[opcion_seleccionada - 1]
-            print(f"Has seleccionado: {valor_seleccionado}\n\n")
-        else:
-            print("Opción no válida.")
-    
-#%%
-        fila_deseada = opcion_seleccionada   # Por ejemplo, seleccionamos la fila 50
-        
-        fila_seleccionada = data_frame.iloc[fila_deseada + 1]  # Sumamos 1 porque los índices de pandas comienzan en 0
-
-        # Convertir la Serie a un arreglo
-        fila_seleccionada_array = fila_seleccionada.values
-
-        # tabla_fila = pd.DataFrame([fila_seleccionada_array])
-
-        # print(tabla_fila);
-        
-        #fila_informacion = data_frame.iloc[1]
-        fila_informacion= data_frame.iloc[1]
-        fila_informacion_array = fila_informacion.values
-        
-        fila_informacion_array = fila_informacion_array.reshape(-1, 1)
-        fila_seleccionada_array= fila_seleccionada_array.reshape(-1, 1)
-        
-        matriz_unida = np.column_stack((fila_informacion_array, fila_seleccionada_array));
-
-#%%        
-        #CodConductor = data_frame.index[valor_seleccionado]
-        Ds = (matriz_unida[6, 1])/1000 #RMG en m
-        diametro = (matriz_unida[5, 1])/1000 # Diametro total en m
-        rac75 = matriz_unida[12, 1] #resistencia AC a 75 C ohm/km
-        Incond = matriz_unida[13, 1]; #Corriente nomina del conductor en kA
-        
-        
-#%%        
-        print("\nDatos De Conductor:")
-        # print(matriz_unida)
-        
-        tabla = tabulate(matriz_unida, tablefmt="grid")
-        print(tabla)
-        
-        sub_menu()
-        
-#%%         
-    elif opcion == "2":
-        
-        hoja_seleccionada = "ACAR"  # Cambia al nombre de la segunda hoja que deseas seleccionar
-        libro_trabajo = openpyxl.load_workbook(archivo_excel)
-        hoja = libro_trabajo[hoja_seleccionada]
-        libro_trabajo.close()
-        
-        print(f"-->Has seleccionado ACAR\n\n")
-        
-        print("Seleccione el codigo del conductor:\n\n")
-        
-        data_frame = pd.read_excel(archivo_excel, sheet_name=hoja_seleccionada)
-
-        fila_inicial = 3  # Fila desde la que deseas comenzar a desplegar los datos
-        columna_deseada = "Código"  # Cambia al nombre de la columna que deseas seleccionar
-    
-        # Filtra los datos a partir de la fila inicial y obtén los valores únicos de la columna deseada
-        valores_columna = data_frame.iloc[fila_inicial - 1:][columna_deseada].unique()
-
-        # Enumera los valores para mostrarlos con numeración
-        for indice, valor in enumerate(valores_columna, start=1):
-          print(f"{indice}. {valor}")
-
-        # Pide al usuario que seleccione una opción
-        opcion_seleccionada = int(input("Selecciona una opción: "))
-
-        # Valida la opción seleccionada
-        if 1 <= opcion_seleccionada <= len(valores_columna):
-            valor_seleccionado = valores_columna[opcion_seleccionada - 1]
-            print(f"Has seleccionado: {valor_seleccionado}\n\n")
-        else:
-            print("Opción no válida.")
-#%%
-        fila_deseada = opcion_seleccionada   # Por ejemplo, seleccionamos la fila 50
-        
-        fila_seleccionada = data_frame.iloc[fila_deseada + 1]  # Sumamos 1 porque los índices de pandas comienzan en 0
-
-        # Convertir la Serie a un arreglo
-        fila_seleccionada_array = fila_seleccionada.values
-
-        # tabla_fila = pd.DataFrame([fila_seleccionada_array])
-
-        # print(tabla_fila);
-        
-        #fila_informacion = data_frame.iloc[1]
-        fila_informacion= data_frame.iloc[1]
-        fila_informacion_array = fila_informacion.values
-        
-        fila_informacion_array = fila_informacion_array.reshape(-1, 1)
-        fila_seleccionada_array= fila_seleccionada_array.reshape(-1, 1)
-        
-        matriz_unida = np.column_stack((fila_informacion_array, fila_seleccionada_array));
-        
-#%%
-        #CodConductor = data_frame.index[valor_seleccionado]
-        Ds = (matriz_unida[4, 1])/1000 #RMG en m
-        diametro = (matriz_unida[3, 1])/1000 # Diametro total en m
-        rac75 = matriz_unida[10, 1] #resistencia AC a 75 C ohm/km
-        Incond = matriz_unida[11, 1]; #Corriente nomina del conductor en kA
-        
-#%%        
-        print("\nDatos De Conductor:")
-        # print(matriz_unida)
-        
-        tabla = tabulate(matriz_unida, tablefmt="grid")
-        print(tabla) 
-        
-        sub_menu()
-        
-#%%            
-        
-    #Aqui hay que modificar para que devuelva al submenu    
-    elif opcion == "3":
-        print("Saliendo del programa.")
-        break
+            if Nunf == 1:
+                print("\nEstá dentro de 1 subconductor por fase")
+                L = 0.2 * np.log(GMD / Ds)
+                aux = np.log(GMD / r)
+                C = 0.0556 / aux
+                rp = rac75 / (1 * 1)
+                break
+            elif Nunf == 2:
+                print("\nEstá dentro de 2 subconductores por fase")
+                d = float(input("\nIngrese la distancia de separacion de los subconductores por fase en (m): "))
+                GMRL = np.sqrt(Ds * d)
+                GMRC = np.sqrt(r * d)
+                L = 0.2 * np.log(GMD /GMRL)
+                aux = np.log(GMD /GMRC)
+                C = 0.0556 / aux  # uF/km
+                rp=rac75/(2*1)
+                break
+            elif Nunf == 3:
+                print("\nEstá dentro de 3 subconductores por fase")
+                d = float(input("\nIngrese la distancia de separacion de los subconductores por fase en (m): "))
+                GMRL = (Ds * d * d) ** (1 / 3)
+                GMRC = (r * d * d) ** (1 / 3)
+                L = 0.2 * np.log(GMD /GMRL)
+                aux = np.log(GMD /GMRC)
+                C = 0.0556 / aux  # uF/km
+                rp=rac75/(3*1)
+                break
+            elif Nunf == 4:
+                print("\nEstá dentro de 4 subconductores por fase")
+                d = float(input("\nIngrese la distancia de separación de los subconductores por fase en (m): "))
+                GMRL = 1.09 * ((Ds * d * d * d) ** (1 / 4))
+                GMRC = 1.09 * ((r * d * d * d) ** (1 / 4))
+                L = 0.2 * np.log(GMD /GMRL)
+                aux = np.log(GMD /GMRC)
+                C = 0.0556 / aux  # uF/km
+                rp=rac75/(4*1)
+                break
+            else:
+                print("El valor ingresado no es válido. Intente nuevamente.")
     else:
-        print("Opción no válida.")
+        dist_a1_b1 = distances[0, 1]
+        dist_a1_c1 = distances[0, 2]
+        dist_a1_a2 = distances[0, 3]
+        dist_a1_b2 = distances[0, 4]
+        dist_a1_c2 = distances[0, 5]
+        dist_b1_c1 = distances[1, 2]
+        dist_b1_a2 = distances[1, 3]
+        dist_b1_b2 = distances[1, 4]
+        dist_b1_c2 = distances[1, 5]
+        dist_c1_a2 = distances[2, 3]
+        dist_c1_b2 = distances[2, 4]
+        dist_c1_c2 = distances[2, 5]
+        dist_a2_b2 = distances[3, 4]
+        dist_a2_c2 = distances[3, 5]
+        dist_b2_c2 = distances[4, 5]
 
-# Programa principal
-menu_principal()
+        Dab = (dist_a1_b1 * dist_a1_b2 * dist_b1_a2 * dist_a2_b2) ** (1 / 4)
+        Dbc = (dist_b1_c1 * dist_b1_c2 * dist_c1_b2 * dist_b2_c2) ** (1 / 4)
+        Dac = (dist_a1_c1 * dist_a1_c2 * dist_c1_a2 * dist_a2_c2) ** (1 / 4)
+
+        GMD = (Dab * Dbc * Dac) ** (1 / 3)
+        
+
+        while True:
+            Nunf = int(input("\nIngrese un número de subconductores por fase (1, 2, 3 o 4): "))
+
+            if Nunf == 1:
+                print("\nEstá dentro de 1 subconductores por fase")
+                L = 0.2 * np.log(GMD / Ds)
+                aux = np.log(GMD / r)
+                C = 0.0556 / aux
+                rp = rac75 / (2 * 1)
+                break
+            elif Nunf == 2:
+                print("\nEstá dentro de 2 subconductores por fase")
+                d = float(input("\nIngrese la distancia de separación de los subconductores por fase en (m): "))
+                GMRL = np.sqrt(Ds * d)
+                GMRC = np.sqrt(r * d)
+                GMRLA=np.sqrt(GMRL*dist_a1_a2)
+                GMRLB=np.sqrt(GMRL*dist_b1_b2)
+                GMRLC=np.sqrt(GMRL*dist_c1_c2)
+                GMRLP=((GMRLA*GMRLB*GMRLC)** (1/3))
+                L = 0.2 * np.log(GMD /GMRLP)
+                GMRCA=np.sqrt(GMRC*dist_a1_a2)
+                GMRCB=np.sqrt(GMRC*dist_b1_b2)
+                GMRCC=np.sqrt(GMRC*dist_c1_c2)
+                
+                GMRCP=((GMRCA*GMRCB*GMRCC)** (1/3))
+                
+                aux = np.log(GMD /GMRCP)
+                C = 0.0556 / aux  # uF/km
+                rp=rac75/(2*2)
+                
+                # Convertir la variable a tipo float
+                float_L = float(L)
+
+                # Imprimir el resultado
+               
+                break
+            
+            elif Nunf == 3:
+                print("\nEstá dentro de 3 subconductores por fase")
+                d = float(input("\nIngrese la distancia de separación de los subconductores por fase en (m): "))
+                GRML= (Ds*d*d)** (1/3)
+                GMRC= (r*d*d)** (1/3)
+                GMRLA=np.sqrt(GMRL*dist_a1_a2)
+                GMRLB=np.sqrt(GMRL*dist_b1_b2)
+                GMRLC=np.sqrt(GMRL*dist_c1_c2)
+                GMRLP=((GMRLA*GMRLB*GMRLC)** (1/3)) 
+                L = 0.2 * np.log(GMD /GMRLP)
+                
+                GMRCA=np.sqrt(GMRC*dist_a1_a2)
+                GMRCB=np.sqrt(GMRC*dist_b1_b2)
+                GMRCC=np.sqrt(GMRC*dist_c1_c2)
+                GMRCP=((GMRCA*GMRCB*GMRCC)** (1/3))
+                aux = np.log(GMD /GMRCP)
+                C = 0.0556 / aux  # uF/km
+                rp=rac75/(3*2)
+               
+                # Convertir la variable a tipo float
+                float_L = float(L)
+
+                # Imprimir el resultado
+               
+                break
+            
+            elif Nunf == 4:
+                print("\nEstá dentro de 4 subconductores por fase")
+                d = float(input("\nIngrese la distancia de separación de los subconductores por fase en (m): "))
+                GRML= 1.09*((Ds*d*d*d)** (1/4))
+                GMRC=1.09*((r*d*d*d)** (1/4))
+                GMRLA=np.sqrt(GMRL*dist_a1_a2)
+                GMRLB=np.sqrt(GMRL*dist_b1_b2)
+                GMRLC=np.sqrt(GMRL*dist_c1_c2)
+                GMRLP=((GMRLA*GMRLB*GMRLC)** (1/3)) 
+                L = 0.2 * np.log(GMD /GMRLP)
+                GMRCA=np.sqrt(GMRC*dist_a1_a2)
+                GMRCB=np.sqrt(GMRC*dist_b1_b2)
+                GMRCC=np.sqrt(GMRC*dist_c1_c2)
+                GMRCP=((GMRCA*GMRCB*GMRCC)** (1/3))
+                aux = np.log(GMD /GMRCP)
+                C = 0.0556 / aux  # uF/km
+                rp=rac75/(4*2)
+                # Imprimir el resultado
+               
+                break
+            else:
+                print("El valor ingresado no es válido. Intente nuevamente.")
+
+    float_L = float(L)
+    # print("\nLa inductancia en (mh/Km):", float_L)               
+
+    float_C = float(C)
+    # print("\nLa capacitancia en (uF/Km):", float_C)     
+    
+    float_rp = float(rp)
+    # print("\nLa resistencia en (Ω/Km):", float_rp)
+    
+    array_caracteres_np = np.array(['Inductancia','Capacitancia','Resistencia'])
+    array_unidades_np = np.array(['(mh/Km)','(uF/Km)','(Ω/Km)'])
+    array_parametros_np = np.array([float_L,float_C,float_rp])
+            
+    array_parametros_np_red=[round(num, 5) for num in array_parametros_np]
+    array_parametros_np_red= np.array(array_parametros_np_red, dtype=np.float64)
+            
+    matriz_resultados = np.column_stack((array_caracteres_np, array_unidades_np, array_parametros_np_red))
+    print("\nRESULTADOS:")
+    tabla_resultados = tabulate(matriz_resultados, tablefmt="grid")
+    print(tabla_resultados)
+    
+    return rp, L, C
+    
+#%% MENU PRINCIPAL
+if __name__ == "__main__":
+    while True:
+        print("Seleccione el tipo de conductor:")
+        print("1. ACSR")
+        print("2. ACAR")
+        print("3. Salir")
+
+        opcion = input("Seleccione una opción:")
+
+        if opcion == "1":
+            hoja_seleccionada = "ACSR"
+            libro_trabajo = openpyxl.load_workbook(archivo_excel)
+            hoja = libro_trabajo[hoja_seleccionada]
+            libro_trabajo.close()
+        
+            print(f"-->Ha seleccionado ACSR\n\n")
+        
+            print("Seleccione el código del conductor:\n\n")
+        
+            data_frame = pd.read_excel(archivo_excel, sheet_name=hoja_seleccionada)
+
+            fila_inicial = 3
+            columna_deseada = "Código"
+    
+            valores_columna = data_frame.iloc[fila_inicial - 1:][columna_deseada].unique()
+
+            for indice, valor in enumerate(valores_columna, start=1):
+                print(f"{indice}. {valor}")
+
+            opcion_seleccionada = int(input("Seleccione una opción: "))
+
+            if 1 <= opcion_seleccionada <= len(valores_columna):
+                valor_seleccionado = valores_columna[opcion_seleccionada - 1]
+                print(f"Ha seleccionado: {valor_seleccionado}\n\n")
+            else:
+                print("Opción no válida.")
+        
+            fila_deseada = opcion_seleccionada
+            fila_seleccionada = data_frame.iloc[fila_deseada + 1]
+
+            fila_seleccionada_array = fila_seleccionada.values
+
+            fila_informacion = data_frame.iloc[1]
+            fila_informacion_array = fila_informacion.values
+        
+            fila_informacion_array = fila_informacion_array.reshape(-1, 1)
+            fila_seleccionada_array = fila_seleccionada_array.reshape(-1, 1)
+        
+            matriz_unida = np.column_stack((fila_informacion_array, fila_seleccionada_array))
+        
+            Ds = (matriz_unida[6, 1]) / 1000
+            diametro = (matriz_unida[5, 1]) / 1000
+            rac75 = matriz_unida[12, 1]
+            Incond = matriz_unida[13, 1]
+            
+#%%            
+            rp = 0  # Inicializa rp
+            L = 0   # Inicializa L
+            C = 0   # Inicializa C
+#%%        
+            print("\nDatos Del Conductor:")
+            tabla = tabulate(matriz_unida, tablefmt="grid")
+            print(tabla) 
+            
+            # sub_menu(Ds, diametro, rac75, rp, L, C)  # Modifica esta línea
+            rp, L, C = sub_menu(Ds, diametro, rac75, rp, L, C)
+        
+        elif opcion == "2":
+            hoja_seleccionada = "ACAR"
+            libro_trabajo = openpyxl.load_workbook(archivo_excel)
+            hoja = libro_trabajo[hoja_seleccionada]
+            libro_trabajo.close()
+        
+            print(f"-->Ha seleccionado ACAR\n\n")
+        
+            print("Seleccione el código del conductor:\n\n")
+        
+            data_frame = pd.read_excel(archivo_excel, sheet_name=hoja_seleccionada)
+
+            fila_inicial = 3
+            columna_deseada = "Código"
+    
+            valores_columna = data_frame.iloc[fila_inicial - 1:][columna_deseada].unique()
+
+            for indice, valor in enumerate(valores_columna, start=1):
+                print(f"{indice}. {valor}")
+
+            opcion_seleccionada = int(input("Seleccione una opción: "))
+
+            if 1 <= opcion_seleccionada <= len(valores_columna):
+                valor_seleccionado = valores_columna[opcion_seleccionada - 1]
+                print(f"Ha seleccionado: {valor_seleccionado}\n\n")
+            else:
+                print("Opción no válida.")
+        
+            fila_deseada = opcion_seleccionada
+            fila_seleccionada = data_frame.iloc[fila_deseada + 1]
+
+            fila_seleccionada_array = fila_seleccionada.values
+
+            fila_informacion = data_frame.iloc[1]
+            fila_informacion_array = fila_informacion.values
+        
+            fila_informacion_array = fila_informacion_array.reshape(-1, 1)
+            fila_seleccionada_array = fila_seleccionada_array.reshape(-1, 1)
+        
+            matriz_unida = np.column_stack((fila_informacion_array, fila_seleccionada_array))
+        
+            Ds = (matriz_unida[6, 1]) / 1000
+            diametro = (matriz_unida[5, 1]) / 1000
+            rac75 = matriz_unida[12, 1]
+            Incond = matriz_unida[13, 1]
+            
+            rp = 0  # Inicializa rp
+            L = 0   # Inicializa L
+            C = 0   # Inicializa C
+        
+            print("\nDatos Del Conductor:")
+            tabla = tabulate(matriz_unida, tablefmt="grid")
+            print(tabla) 
+        
+            # sub_menu(Ds, diametro, rac75, rp, L, C)  # Modifica esta línea
+            rp, L, C = sub_menu(Ds, diametro, rac75, rp, L, C)
+            
+        elif opcion == "3":
+            print("=====.")
+            print("Saliendo del programa.")
+            break
+        else:
+            print("Opción no válida. Introduzca 1, 2 o 3.")
+
