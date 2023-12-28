@@ -3,6 +3,7 @@ Proyecto Modelación y Operación de Líneas de Transmisión en Estado Estaciona
 Desarrollar un programa empleando Python, que permita a partir de la selección de la configuración de una torre de línea de transmisión trifásica de tipo: 
 
 *Simple circuito
+
 *Doble circuito con secuencia de fases (abc-c'b'a' o abc-a'b'c').
 
 Calcular los parámetros de la L/T con transposición (por unidad de longitud - km). Conociendo
