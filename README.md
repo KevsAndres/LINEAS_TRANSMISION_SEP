@@ -1,4 +1,4 @@
-Proyecto Modelación y Operación de Líneas de Transmisión en Estado Estacionario
+*Proyecto Modelación y Operación de Líneas de Transmisión en Estado Estacionario*
 
 Desarrollar un programa empleando Python, que permita a partir de la selección de la configuración de una torre de línea de transmisión trifásica de tipo: 
 
