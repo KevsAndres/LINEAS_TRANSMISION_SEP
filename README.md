@@ -1,17 +1,17 @@
 Proyecto Modelación y Operación de Líneas de Transmisión en Estado Estacionario
+
 Desarrollar un programa empleando Python, que permita a partir de la selección de la configuración de una torre de línea de transmisión trifásica de tipo: 
+
 *Simple circuito
 *Doble circuito con secuencia de fases (abc-c'b'a' o abc-a'b'c').
+
 Calcular los parámetros de la L/T con transposición (por unidad de longitud - km). Conociendo
 las coordenadas de cada conductor en metros, el tipo de conductor (ACSR o ACAR), el nombre 
 del conductor y sus especificaciones (de la hoja de datos del fabricante de conductor 
 proporcionada), número de conductores por fase (hasta 4), distancia de conductores por fase 
 (en centímetros).
-Calcular los parámetros de la L/T con transposición (por unidad de longitud - km). Conociendo
-las coordenadas de cada conductor en metros, el tipo de conductor (ACSR o ACAR), el nombre 
-del conductor y sus especificaciones (de la hoja de datos del fabricante de conductor 
-proporcionada), número de conductores por fase (hasta 4), distancia de conductores por fase 
-(en centímetros):
+
+Adicionalmente el programa podrá analizar las siguientes condiciones operativas:
 
 1. Calcular Voltajes, Corrientes y Potencias de Envío y Recibo, además de las Pérdidas de 
 la L/T, eficiencia y porcentaje de Regulación. Conocida la carga en el punto de recibo 
